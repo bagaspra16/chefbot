@@ -276,6 +276,13 @@
       <p class="text-sm text-text-secondary text-center mb-6">Kitchen & Cooking Assistant</p>
       <div class="w-full space-y-4">
         <div>
+          <span class="text-xs font-semibold uppercase tracking-wider text-text-muted block mb-2">Services</span>
+          <div class="flex gap-2">
+            <button type="button" class="service-btn flex-1 px-3 py-2 rounded-xl text-xs font-medium border transition-all" data-service="api">API</button>
+            <button type="button" class="service-btn flex-1 px-3 py-2 rounded-xl text-xs font-medium border transition-all" data-service="docker">Docker</button>
+          </div>
+        </div>
+        <div>
           <span class="text-xs font-semibold uppercase tracking-wider text-text-muted block mb-2">Mode</span>
           <div class="flex flex-wrap gap-2">
             <button type="button" class="mode-tag-btn px-3 py-1.5 rounded-full text-xs font-medium border transition-all" data-mode="recipe">Recipe Bot</button>
@@ -318,6 +325,7 @@
         <li>• Type your cooking question in the input field below.</li>
         <li>• Click a suggested question to ask instantly.</li>
         <li>• Use <strong>Clear chat</strong> to start a new conversation.</li>
+        <li>• Choose <strong>Services</strong> (API or Docker) to switch between RapidAPI ChatGPT and local Ollama.</li>
         <li>• Choose a <strong>Mode</strong> to focus on recipes, ingredients, tips, or menu planning.</li>
         <li>• Select <strong>Language</strong> (English or Indonesian) for responses.</li>
       </ul>

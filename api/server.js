@@ -12,6 +12,11 @@ const PORT = Number(process.env.PORT) || 3000;
 const OLLAMA_HOST = (process.env.OLLAMA_HOST || 'http://localhost:11434').replace(/\/$/, '');
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'tinyllama';
 
+// RapidAPI ChatGPT-42
+const RAPIDAPI_URL = process.env.RAPIDAPI_URL || 'https://chatgpt-42.p.rapidapi.com/chat';
+const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || '18c4b2fd16msh32d393319e95b02p1ebdb6jsncda25d8eb8d3';
+const RAPIDAPI_HOST = process.env.RAPIDAPI_HOST || 'chatgpt-42.p.rapidapi.com';
+
 const MODE_PROMPTS = {
   recipe: {
     focus: 'Focus on recipes: provide clear step-by-step instructions, ingredient lists, and cooking times.',
@@ -117,7 +122,7 @@ app.use((req, res, next) => {
   res.set('X-Content-Type-Options', 'nosniff');
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type, X-Session-Id, X-Mode, X-Language');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, X-Session-Id, X-Mode, X-Language, X-Service');
   if (req.method === 'OPTIONS') {
     return res.sendStatus(204);
   }
@@ -213,9 +218,78 @@ async function callOllama(messages) {
   return data.message?.content ?? '';
 }
 
+/**
+ * Call RapidAPI ChatGPT-42 for chat completion.
+ * Uses messages array format (OpenAI-style).
+ */
+async function callRapidAPI(messages) {
+  const res = await fetch(RAPIDAPI_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-RapidAPI-Key': RAPIDAPI_KEY,
+      'X-RapidAPI-Host': RAPIDAPI_HOST
+    },
+    body: JSON.stringify({ messages })
+  }).catch(err => {
+    const e = new Error(`RapidAPI connection failed: ${err.message}`);
+    e.cause = err;
+    throw e;
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`RapidAPI error ${res.status}: ${errText}`);
+  }
+  const data = await res.json();
+  // Support common response formats: result, choices[0].message.content, message.content
+  const content = data.result ?? data.choices?.[0]?.message?.content ?? data.message?.content ?? data.response ?? '';
+  return typeof content === 'string' ? content : (content?.text ?? JSON.stringify(content));
+}
+
 // --- Health ---
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'chefbot-api' });
+});
+
+// --- Service check: verify selected service is ready ---
+app.get('/api/service-check', async (req, res) => {
+  const service = (req.query.service || 'api').toLowerCase();
+  if (service !== 'api' && service !== 'docker') {
+    return res.status(400).json({ ok: false, error: 'Invalid service', hint: 'Use ?service=api or ?service=docker' });
+  }
+  try {
+    if (service === 'docker') {
+      const tagsRes = await fetch(`${OLLAMA_HOST}/api/tags`);
+      if (!tagsRes.ok) throw new Error(`Ollama returned ${tagsRes.status}`);
+      const tags = await tagsRes.json();
+      const models = tags?.models || [];
+      const hasModel = models.some(m => (m.name || '').toLowerCase().includes(OLLAMA_MODEL.toLowerCase()));
+      return res.json({
+        ok: true,
+        service: 'docker',
+        ollama: 'ok',
+        modelPulled: hasModel,
+        hint: hasModel ? null : `Pull model: docker compose exec ollama ollama pull ${OLLAMA_MODEL}`
+      });
+    }
+    // API (RapidAPI): verify config and optional connectivity
+    if (!RAPIDAPI_KEY || !RAPIDAPI_HOST) {
+      throw new Error('RAPIDAPI_KEY and RAPIDAPI_HOST must be set');
+    }
+    return res.json({ ok: true, service: 'api' });
+  } catch (err) {
+    const code = err.cause?.code ?? err.code;
+    const hint = service === 'docker'
+      ? 'Run: docker compose up -d, then: docker compose exec ollama ollama pull tinyllama'
+      : 'Check RAPIDAPI_KEY and RAPIDAPI_HOST. Ensure RapidAPI subscription is active.';
+    return res.status(502).json({
+      ok: false,
+      service,
+      error: err.message,
+      code: code,
+      hint
+    });
+  }
 });
 
 // --- Status: check Ollama connectivity ---
@@ -287,6 +361,8 @@ app.post('/api/chat', async (req, res) => {
   const userMessage = typeof rawMessage === 'string' ? rawMessage.trim() : '';
   const mode = req.body?.mode || req.headers['x-mode'] || 'recipe';
   const language = req.body?.language || req.headers['x-language'] || 'en';
+  const service = (req.body?.service || req.headers['x-service'] || 'api').toLowerCase();
+  const useApi = service === 'api';
 
   if (!userMessage) {
     return res.status(400).json({ error: 'Missing or empty message' });
@@ -301,7 +377,7 @@ app.post('/api/chat', async (req, res) => {
     });
   }
 
-  const cacheKey = userMessage.toLowerCase() + '|' + mode + '|' + language;
+  const cacheKey = userMessage.toLowerCase() + '|' + mode + '|' + language + '|' + service;
   const cached = replyCache.get(cacheKey);
   if (cached) {
     const context = getContext(sessionId);
@@ -314,20 +390,25 @@ app.post('/api/chat', async (req, res) => {
   const messages = buildMessages(sessionId, userMessage, mode, language);
   let reply;
   try {
-    reply = await callOllama(messages);
+    reply = useApi ? await callRapidAPI(messages) : await callOllama(messages);
   } catch (err) {
-    console.error('Ollama request failed:', err.message);
-    let detail = 'Could not reach the local model. ';
+    console.error(useApi ? 'RapidAPI request failed:' : 'Ollama request failed:', err.message);
+    let detail;
     const code = err.cause?.code ?? err.code;
-    if (code === 'ECONNREFUSED' || code === 'ECONNRESET') {
-      detail += 'Ollama is not running or not reachable. Start it with: docker compose up -d';
-    } else if (err.message.includes('404') || err.message.includes('not found')) {
-      detail += 'Model not found. Pull it with: docker compose exec ollama ollama pull tinyllama';
+    if (useApi) {
+      detail = err.message.includes('RapidAPI') ? err.message : `RapidAPI error: ${err.message}. Check RAPIDAPI_KEY and subscription.`;
     } else {
-      detail += 'Ensure Ollama is running and the model is pulled (e.g. docker compose exec ollama ollama pull tinyllama).';
+      detail = 'Could not reach the local model. ';
+      if (code === 'ECONNREFUSED' || code === 'ECONNRESET') {
+        detail += 'Ollama is not running or not reachable. Start it with: docker compose up -d';
+      } else if (err.message.includes('404') || err.message.includes('not found')) {
+        detail += 'Model not found. Pull it with: docker compose exec ollama ollama pull tinyllama';
+      } else {
+        detail += 'Ensure Ollama is running and the model is pulled (e.g. docker compose exec ollama ollama pull tinyllama).';
+      }
     }
     return res.status(502).json({
-      error: 'Model unavailable',
+      error: useApi ? 'API unavailable' : 'Model unavailable',
       detail: detail
     });
   }
@@ -343,7 +424,7 @@ app.post('/api/chat', async (req, res) => {
         },
         { role: 'user', content: buildLanguageFixPrompt(reply, language) }
       ];
-      const fixedReply = await callOllama(fixMessages);
+      const fixedReply = useApi ? await callRapidAPI(fixMessages) : await callOllama(fixMessages);
       if (fixedReply && fixedReply.trim().length > 0) {
         reply = fixedReply.trim();
         console.log('ChefBot: Language validation failed, applied fix for', language);
@@ -385,5 +466,5 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`ChefBot API listening on port ${PORT}`);
-  console.log(`Ollama: ${OLLAMA_HOST}, model: ${OLLAMA_MODEL}`);
+  console.log(`Services: API (RapidAPI), Docker (Ollama: ${OLLAMA_HOST}, model: ${OLLAMA_MODEL})`);
 });

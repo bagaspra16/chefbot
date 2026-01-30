@@ -82,6 +82,7 @@
   let sessionId = sessionStorage.getItem('chefbot-session') || crypto.randomUUID();
   sessionStorage.setItem('chefbot-session', sessionId);
 
+  let currentService = 'api';
   let currentMode = 'recipe';
   let currentLanguage = 'en';
 
@@ -174,7 +175,7 @@
           'Content-Type': 'application/json',
           [SESSION_HEADER]: sessionId
         },
-        body: JSON.stringify({ message: raw, mode: currentMode, language: currentLanguage })
+        body: JSON.stringify({ message: raw, mode: currentMode, language: currentLanguage, service: currentService })
       });
 
       let data = {};
@@ -294,9 +295,11 @@
     if (e.target === this) hideHowToUseModal();
   });
 
-  // Mode & Language handlers
-  function showConfigLoading() {
+  // Mode, Language & Service handlers
+  function showConfigLoading(text) {
     const overlay = document.getElementById('config-loading');
+    const textEl = overlay?.querySelector('p');
+    if (textEl) textEl.textContent = text || 'Applying configuration…';
     if (overlay) overlay.classList.remove('hidden');
   }
 
@@ -306,12 +309,63 @@
   }
 
   function applyConfigWithLoading(callback) {
-    showConfigLoading();
+    showConfigLoading('Applying configuration…');
     setTimeout(() => {
       if (typeof callback === 'function') callback();
       hideConfigLoading();
     }, 600);
   }
+
+  async function applyServiceWithLoading(newService, btn) {
+    showConfigLoading('Verifying service…');
+    try {
+      const res = await fetch(`/api/service-check?service=${encodeURIComponent(newService)}`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        currentService = newService;
+        document.querySelectorAll('.service-btn').forEach(b => b.classList.remove('active'));
+        btn?.classList.add('active');
+        const banner = document.getElementById('status-banner');
+        const textEl = document.getElementById('status-text');
+        if (newService === 'api') {
+          banner?.classList.add('hidden');
+        } else if (data.hint && data.modelPulled === false) {
+          if (banner && textEl) {
+            textEl.textContent = data.hint;
+            banner.classList.remove('hidden');
+          }
+        } else {
+          banner?.classList.add('hidden');
+        }
+        if (newService === 'docker') checkStatus();
+      } else {
+        const msg = data.hint || data.error || 'Service check failed';
+        const banner = document.getElementById('status-banner');
+        const textEl = document.getElementById('status-text');
+        if (banner && textEl) {
+          textEl.textContent = msg;
+          banner.classList.remove('hidden');
+        }
+      }
+    } catch (err) {
+      const banner = document.getElementById('status-banner');
+      const textEl = document.getElementById('status-text');
+      if (banner && textEl) {
+        textEl.textContent = 'Could not verify service. ' + (err.message || 'Network error');
+        banner.classList.remove('hidden');
+      }
+    } finally {
+      hideConfigLoading();
+    }
+  }
+
+  document.querySelectorAll('.service-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+      const service = this.getAttribute('data-service');
+      if (!service || service === currentService) return;
+      applyServiceWithLoading(service, this);
+    });
+  });
 
   document.querySelectorAll('.mode-tag-btn').forEach(btn => {
     btn.addEventListener('click', function () {
@@ -338,6 +392,7 @@
   });
 
   // Set initial active states
+  document.querySelector(`.service-btn[data-service="${currentService}"]`)?.classList.add('active');
   document.querySelector(`.mode-tag-btn[data-mode="${currentMode}"]`)?.classList.add('active');
   document.querySelector(`.lang-btn[data-lang="${currentLanguage}"]`)?.classList.add('active');
 
@@ -423,8 +478,9 @@
   // New Chat link in header (optional - add if we have a header link)
   window.chefbotClearContext = clearContext;
 
-  // Check status on load
+  // Check status on load (only show Ollama banner when using Docker service)
   async function checkStatus() {
+    if (currentService !== 'docker') return;
     try {
       const res = await fetch('/api/status');
       const data = await res.json().catch(() => ({}));

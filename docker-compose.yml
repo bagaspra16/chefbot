@@ -30,6 +30,8 @@ services:
       - PORT=3000
       - OLLAMA_HOST=http://ollama:11434
       - OLLAMA_MODEL=tinyllama
+      - RAPIDAPI_KEY=${RAPIDAPI_KEY:-18c4b2fd16msh32d393319e95b02p1ebdb6jsncda25d8eb8d3}
+      - RAPIDAPI_HOST=${RAPIDAPI_HOST:-chatgpt-42.p.rapidapi.com}
     depends_on:
       ollama:
         condition: service_started

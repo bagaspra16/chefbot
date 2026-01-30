@@ -344,6 +344,24 @@ body {
   transform: scale(0.98);
 }
 
+/* Service buttons */
+.service-btn {
+  background: var(--surface);
+  border-color: var(--surface-deep);
+  color: var(--text-secondary);
+}
+
+.service-btn:hover {
+  border-color: rgba(212, 175, 55, 0.4);
+  color: var(--text-primary);
+}
+
+.service-btn.active {
+  background: rgba(212, 175, 55, 0.2);
+  color: var(--accent-hover);
+  border-color: rgba(212, 175, 55, 0.4);
+}
+
 /* Mode & Language buttons */
 .mode-tag-btn,
 .lang-btn {
