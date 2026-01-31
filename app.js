@@ -78,11 +78,122 @@
   const sendBtn = document.getElementById('send');
   const messagesEl = document.getElementById('messages');
 
-  const SESSION_HEADER = 'X-Session-Id';
-  let sessionId = sessionStorage.getItem('chefbot-session') || crypto.randomUUID();
-  sessionStorage.setItem('chefbot-session', sessionId);
+  const RAPIDAPI_URL = 'https://chatgpt-42.p.rapidapi.com/chat';
+  const RAPIDAPI_HOST = 'chatgpt-42.p.rapidapi.com';
+  const SESSION_KEY = 'chefbot-session-context';
+  const MAX_CONTEXT = 18;
 
-  let currentService = 'api';
+  let cachedApiKey = null;
+  async function loadEnv() {
+    if (cachedApiKey !== null) return cachedApiKey;
+    for (const file of ['config.env', '.env']) {
+      try {
+        const res = await fetch(file);
+        if (!res.ok) continue;
+        const text = await res.text();
+        const m = text.match(/RAPIDAPI_KEY\s*=\s*(.+)/);
+        if (m) {
+          cachedApiKey = m[1].trim().replace(/^["']|["']$/g, '');
+          break;
+        }
+      } catch (_) {}
+    }
+    if (cachedApiKey === null) cachedApiKey = '';
+    return cachedApiKey;
+  }
+
+  const MODE_PROMPTS = {
+    recipe: { focus: 'Focus on recipes: step-by-step instructions, ingredient lists, cooking times.', format: 'Ingredients list, step-by-step, cooking time.' },
+    ingredient: { focus: 'Focus on ingredients: substitutions, storage, selection.', format: 'Explain ingredient, substitutions, storage tips.' },
+    tips: { focus: 'Focus on kitchen tips: techniques, equipment, food safety.', format: 'Clear bullet points or numbered tips.' },
+    menu: { focus: 'Focus on menu planning: meal ideas, pairing suggestions.', format: 'Meal ideas with pairing notes.' }
+  };
+  const LANGUAGE_RULES = {
+    id: { rule: 'CRITICAL: Respond ONLY in Indonesian (Bahasa Indonesia).' },
+    en: { rule: 'CRITICAL: Respond ONLY in English.' }
+  };
+
+  function buildSystemPrompt(mode, language) {
+    const m = MODE_PROMPTS[mode] || MODE_PROMPTS.recipe;
+    const l = LANGUAGE_RULES[language === 'id' ? 'id' : 'en'];
+    const redirect = language === 'id'
+      ? 'Saya ChefBot, asisten dapur. Saya hanya membantu soal masakan—resep, bahan, teknik. Apa yang ingin Anda tanya?'
+      : 'I\'m ChefBot, your kitchen assistant. I only help with cooking—recipes, ingredients, techniques. What would you like to know?';
+    return `You are ChefBot, a kitchen and cooking expert. ${l.rule} MODE: ${mode}. ${m.focus} Format: ${m.format} CRITICAL: Answer ONLY cooking questions. If the user says hello, asks how you are, or any non-cooking question, respond ONLY with this exact phrase and nothing else: "${redirect}"`;
+  }
+  function buildUserMessage(msg, mode, language) {
+    const tag = language === 'id' ? '[BAHASA: Indonesia]' : '[LANGUAGE: English]';
+    return `${tag} [MODE: ${mode}]\n\n${msg}`;
+  }
+  const OFF_TOPIC_START = [
+    /^(hi|hello|hey|halo|hai|yo)\s*[!?.,]*$/i,
+    /^how\s+(are|is)\s+(you|it)\b/i,
+    /^how'?s\s+(it\s+)?going/i,
+    /^what'?s\s+up/i,
+    /^apa\s+kabar/i,
+    /^good\s+(morning|afternoon|evening|night)\b/i,
+    /^(thanks|thank\s+you|thx)\s*[!?.,]*$/i,
+    /^(bye|goodbye|see\s+you)\s*[!?.,]*$/i,
+    /^(ok|okay|yes|no)\s*[!?.,]*$/i,
+    /^nice\s+to\s+meet\s+you/i,
+    /^how\s+about\s+you\s*[!?.,]*$/i,
+  ];
+  const OFF_TOPIC_CONTAINS = [
+    /\bhow\s+are\s+you\b/i,
+    /\bhow\s+about\s+you\b/i,
+    /\bhow'?s\s+it\s+going\b/i,
+    /\bwhat'?s\s+up\b/i,
+    /\bapa\s+kabar\b/i,
+    /\b(hi|hello|hey)\s*[,!?]?\s*(how|what)/i,
+  ];
+  const COOKING_WORDS = ['recipe', 'cook', 'food', 'ingredient', 'kitchen', 'meal', 'dish', 'masak', 'resep', 'bahan', 'makanan', 'dapur', 'menu', 'substitute', 'storage', 'temperature', 'baking', 'sauce', 'soup', 'salad', 'rice', 'noodle', 'meat', 'vegetable', 'spice', 'herb', 'make', 'bake', 'fry', 'boil', 'grill', 'chop', 'pasta', 'chicken', 'beef', 'fish', 'egg', 'flour', 'sugar', 'salt', 'oil'];
+  function getRedirectMsg() {
+    return currentLanguage === 'id'
+      ? 'Saya ChefBot, asisten dapur Anda. Saya hanya membantu soal masakan—resep, bahan, teknik. Apa yang ingin Anda tanya?'
+      : 'I\'m ChefBot, your kitchen assistant. I only help with cooking—recipes, ingredients, techniques. What would you like to know?';
+  }
+  function checkDomain(text) {
+    const raw = (text || '').trim();
+    const t = raw.toLowerCase();
+    if (OFF_TOPIC_START.some(p => p.test(raw))) return { allowed: false, message: getRedirectMsg() };
+    if (raw.length < 80 && OFF_TOPIC_CONTAINS.some(p => p.test(raw)) && !COOKING_WORDS.some(w => t.includes(w))) {
+      return { allowed: false, message: getRedirectMsg() };
+    }
+    if (!COOKING_WORDS.some(w => t.includes(w)) && t.length < 25) return { allowed: false, message: getRedirectMsg() };
+    return { allowed: true };
+  }
+  function extractRapidAPIResponse(data) {
+    if (!data || typeof data !== 'object') return '';
+    const c = data.choices?.[0]?.message?.content;
+    if (typeof c === 'string' && c.trim()) return c.trim();
+    if (Array.isArray(c)) return c.map(x => (typeof x === 'string' ? x : x?.text || '')).join('').trim() || '';
+    const paths = [data.result, data.response, data.content, data.message?.content];
+    for (const v of paths) if (typeof v === 'string' && v.trim()) return v.trim();
+    return '';
+  }
+  function cleanApiFooter(text) {
+    if (!text || typeof text !== 'string') return '';
+    const footerPatterns = [
+      /Want best roleplay experience\?[\s\S]*/i,
+      /Want the best roleplay experience\?[\s\S]*/i,
+      /Try our premium.*?experience[\s\S]*/i,
+    ];
+    let out = text;
+    for (const re of footerPatterns) out = out.replace(re, '');
+    return out.trim();
+  }
+  function markdownToHtml(text) {
+    if (!text || typeof text !== 'string') return '';
+    if (typeof marked === 'undefined') return text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return marked.parse(text, { gfm: true, breaks: true });
+  }
+  function getSessionContext() {
+    try { const s = sessionStorage.getItem(SESSION_KEY); return s ? JSON.parse(s) : []; } catch { return []; }
+  }
+  function setSessionContext(ctx) {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(ctx.slice(-MAX_CONTEXT)));
+  }
+
   let currentMode = 'recipe';
   let currentLanguage = 'en';
 
@@ -144,8 +255,13 @@
     if (denied) bubble.classList.add('msg-denied');
 
     const text = document.createElement('div');
-    text.className = 'text-[15px] leading-relaxed text-text-primary whitespace-pre-wrap break-words';
-    text.textContent = content;
+    text.className = 'text-[15px] text-text-primary break-words msg-content leading-relaxed';
+    if (role === 'bot' && !denied) {
+      text.innerHTML = markdownToHtml(content);
+      text.classList.add('msg-markdown');
+    } else {
+      text.textContent = content;
+    }
 
     bubble.appendChild(text);
     wrap.appendChild(avatar);
@@ -163,39 +279,56 @@
     const raw = typeof text === 'string' ? text.trim() : input.value.trim();
     if (!raw) return;
 
+    const apiKey = await loadEnv();
+    if (!apiKey) {
+      addMessage(currentLanguage === 'id' ? 'API key belum diatur. Salin .env.example ke config.env dan isi RAPIDAPI_KEY' : 'API key not set. Copy .env.example to config.env and add RAPIDAPI_KEY', 'bot', true);
+      return;
+    }
+    const domain = checkDomain(raw);
+    if (!domain.allowed) {
+      addMessage(domain.message, 'bot', true);
+      return;
+    }
+
     input.value = '';
     addMessage(raw, 'user');
     setTyping(true);
     setSendEnabled(false);
 
     try {
-      const res = await fetch('/api/chat', {
+      const ctx = getSessionContext();
+      const system = buildSystemPrompt(currentMode, currentLanguage);
+      const userContent = buildUserMessage(raw, currentMode, currentLanguage);
+      const contextStr = ctx.length > 0 ? '\n\n[Previous]\n' + ctx.map(m => (m.role === 'user' ? 'User: ' : 'Assistant: ') + m.content).join('\n\n') : '';
+      const fullContent = system + contextStr + '\n\n[Current]\n' + userContent;
+
+      const res = await fetch(RAPIDAPI_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          [SESSION_HEADER]: sessionId
-        },
-        body: JSON.stringify({ message: raw, mode: currentMode, language: currentLanguage, service: currentService })
+        headers: { 'Content-Type': 'application/json', 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': RAPIDAPI_HOST },
+        body: JSON.stringify({ messages: [{ role: 'user', content: fullContent }], model: 'gpt-4o-mini' })
       });
 
+      const rawText = await res.text();
       let data = {};
-      try {
-        const text = await res.text();
-        data = text ? JSON.parse(text) : {};
-      } catch (_) {
-        data = { error: 'Invalid response', detail: `HTTP ${res.status}` };
-      }
+      try { data = rawText ? JSON.parse(rawText) : {}; } catch { data = {}; }
+      const reply = extractRapidAPIResponse(data);
 
       if (!res.ok) {
-        const errMsg = data.detail || data.error || data.message || `HTTP ${res.status}`;
-        const hint = data.hint ? '\n\n' + data.hint : '';
-        addMessage('Sorry, I couldn\'t reach the kitchen assistant. ' + errMsg + hint, 'bot', true);
+        addMessage('Sorry, I couldn\'t reach the kitchen assistant. ' + (data.message || data.error || `HTTP ${res.status}`), 'bot', true);
+        return;
+      }
+      if (!reply) {
+        addMessage(currentLanguage === 'id' ? 'Respons kosong. Cek RAPIDAPI_KEY dan subscription di rapidapi.com.' : 'Empty response. Check RAPIDAPI_KEY and subscription at rapidapi.com.', 'bot', true);
         return;
       }
 
-      addMessage(data.reply || '', 'bot', data.denied === true);
+      const cleanedReply = cleanApiFooter(reply);
+      addMessage(cleanedReply, 'bot', false);
+      ctx.push({ role: 'user', content: raw });
+      ctx.push({ role: 'assistant', content: cleanedReply });
+      setSessionContext(ctx);
     } catch (err) {
-      addMessage('Connection error. Is the app running? Try again. (Check that you are at http://localhost:3000)', 'bot', true);
+      addMessage((currentLanguage === 'id' ? 'Koneksi gagal: ' : 'Connection failed: ') + (err.message || 'Network error'), 'bot', true);
     } finally {
       setTyping(false);
       setSendEnabled(true);
@@ -316,57 +449,6 @@
     }, 600);
   }
 
-  async function applyServiceWithLoading(newService, btn) {
-    showConfigLoading('Verifying service…');
-    try {
-      const res = await fetch(`/api/service-check?service=${encodeURIComponent(newService)}`);
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.ok) {
-        currentService = newService;
-        document.querySelectorAll('.service-btn').forEach(b => b.classList.remove('active'));
-        btn?.classList.add('active');
-        const banner = document.getElementById('status-banner');
-        const textEl = document.getElementById('status-text');
-        if (newService === 'api') {
-          banner?.classList.add('hidden');
-        } else if (data.hint && data.modelPulled === false) {
-          if (banner && textEl) {
-            textEl.textContent = data.hint;
-            banner.classList.remove('hidden');
-          }
-        } else {
-          banner?.classList.add('hidden');
-        }
-        if (newService === 'docker') checkStatus();
-      } else {
-        const msg = data.hint || data.error || 'Service check failed';
-        const banner = document.getElementById('status-banner');
-        const textEl = document.getElementById('status-text');
-        if (banner && textEl) {
-          textEl.textContent = msg;
-          banner.classList.remove('hidden');
-        }
-      }
-    } catch (err) {
-      const banner = document.getElementById('status-banner');
-      const textEl = document.getElementById('status-text');
-      if (banner && textEl) {
-        textEl.textContent = 'Could not verify service. ' + (err.message || 'Network error');
-        banner.classList.remove('hidden');
-      }
-    } finally {
-      hideConfigLoading();
-    }
-  }
-
-  document.querySelectorAll('.service-btn').forEach(btn => {
-    btn.addEventListener('click', function () {
-      const service = this.getAttribute('data-service');
-      if (!service || service === currentService) return;
-      applyServiceWithLoading(service, this);
-    });
-  });
-
   document.querySelectorAll('.mode-tag-btn').forEach(btn => {
     btn.addEventListener('click', function () {
       const mode = this.getAttribute('data-mode');
@@ -392,23 +474,17 @@
   });
 
   // Set initial active states
-  document.querySelector(`.service-btn[data-service="${currentService}"]`)?.classList.add('active');
   document.querySelector(`.mode-tag-btn[data-mode="${currentMode}"]`)?.classList.add('active');
   document.querySelector(`.lang-btn[data-lang="${currentLanguage}"]`)?.classList.add('active');
 
-  // Clear context
-  async function clearContext() {
-    try {
-      await fetch('/api/clear', {
-        method: 'POST',
-        headers: { [SESSION_HEADER]: sessionId }
-      });
-      const welcome = messagesEl.querySelector('div:first-child');
-      const clone = welcome ? welcome.cloneNode(true) : null;
-      messagesEl.innerHTML = '';
-      if (clone) messagesEl.appendChild(clone);
-      if (window.innerWidth < 1024) closeSidebars();
-    } catch (_) {}
+  // Clear context (local only)
+  function clearContext() {
+    setSessionContext([]);
+    const welcome = messagesEl.querySelector('div:first-child');
+    const clone = welcome ? welcome.cloneNode(true) : null;
+    messagesEl.innerHTML = '';
+    if (clone) messagesEl.appendChild(clone);
+    if (window.innerWidth < 1024) closeSidebars();
   }
 
   // Sidebar toggle: expand/collapse with narrow strip when collapsed
@@ -478,28 +554,4 @@
   // New Chat link in header (optional - add if we have a header link)
   window.chefbotClearContext = clearContext;
 
-  // Check status on load (only show Ollama banner when using Docker service)
-  async function checkStatus() {
-    if (currentService !== 'docker') return;
-    try {
-      const res = await fetch('/api/status');
-      const data = await res.json().catch(() => ({}));
-      const banner = document.getElementById('status-banner');
-      const textEl = document.getElementById('status-text');
-      if (!banner || !textEl) return;
-
-      if (data.ollama === 'unreachable' || data.ollama === 'error' || (data.ollama === 'ok' && !data.modelPulled)) {
-        let msg = data.message || 'Ollama not ready.';
-        if (data.hint) msg += ' ' + data.hint;
-        textEl.textContent = msg;
-        banner.classList.remove('hidden');
-      }
-    } catch (_) {}
-  }
-
-  checkStatus();
-
-  document.getElementById('status-dismiss')?.addEventListener('click', function () {
-    document.getElementById('status-banner')?.classList.add('hidden');
-  });
 })();

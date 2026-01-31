@@ -239,6 +239,8 @@
 body {
   background-color: var(--bg);
   overflow: hidden;
+  min-height: 100dvh;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* App layout */
@@ -262,6 +264,63 @@ body {
 
 .msg-denied {
   border-left: 4px solid var(--error);
+}
+
+/* Markdown styling in bot messages - compact, clean typography */
+.msg-markdown {
+  white-space: normal;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+}
+.msg-markdown h1, .msg-markdown h2, .msg-markdown h3, .msg-markdown h4 {
+  font-weight: 600;
+  margin-top: 0.5em;
+  margin-bottom: 0.15em;
+  line-height: 1.3;
+}
+.msg-markdown h1:first-child, .msg-markdown h2:first-child, .msg-markdown h3:first-child, .msg-markdown h4:first-child { margin-top: 0; }
+.msg-markdown h1 { font-size: 1.2em; }
+.msg-markdown h2 { font-size: 1.1em; }
+.msg-markdown h3, .msg-markdown h4 { font-size: 1em; }
+.msg-markdown p {
+  margin: 0.15em 0;
+  line-height: 1.5;
+}
+.msg-markdown p:first-child { margin-top: 0; }
+.msg-markdown p:last-child { margin-bottom: 0; }
+.msg-markdown p + p { margin-top: 0.25em; }
+.msg-markdown h1 + p, .msg-markdown h2 + p, .msg-markdown h3 + p, .msg-markdown h4 + p { margin-top: 0.1em; }
+.msg-markdown ul, .msg-markdown ol {
+  margin: 0.15em 0;
+  padding-left: 1.2em;
+}
+.msg-markdown li {
+  margin: 0.05em 0;
+  line-height: 1.45;
+}
+.msg-markdown strong { font-weight: 600; color: var(--text-primary); }
+.msg-markdown em { font-style: italic; }
+.msg-markdown code {
+  background: rgba(31, 41, 55, 0.08);
+  padding: 0.08em 0.25em;
+  border-radius: 0.2em;
+  font-size: 0.9em;
+}
+.msg-markdown pre {
+  background: rgba(31, 41, 55, 0.06);
+  padding: 0.4em 0.6em;
+  border-radius: 0.4em;
+  overflow-x: auto;
+  margin: 0.25em 0;
+  font-size: 0.88em;
+}
+.msg-markdown pre code { background: none; padding: 0; }
+.msg-markdown blockquote {
+  border-left: 3px solid var(--accent);
+  margin: 0.25em 0;
+  padding-left: 0.6em;
+  color: var(--text-secondary);
+  font-size: 0.95em;
 }
 
 /* Typing indicator - more visible, interactive animation */
@@ -602,27 +661,31 @@ body {
   background: rgba(156, 163, 175, 0.4);
 }
 
-/* ========== Mobile Chatbot - Minimalist & Attractive ========== */
+/* ========== Mobile Chatbot - Flexible & Dynamic ========== */
 @media (max-width: 1023px) {
-  /* Safe area for notched phones */
+  /* Viewport - dynamic height for mobile browsers */
   .app-layout {
+    height: 100dvh;
+    min-height: -webkit-fill-available;
     padding-bottom: env(safe-area-inset-bottom, 0);
   }
 
-  /* Chat main - full width, clean */
+  /* Chat main - flex fills viewport */
   .chat-main {
-    min-height: 100vh;
-    min-height: 100dvh;
+    min-height: 0;
+    flex: 1;
   }
 
   .chat-header {
-    min-height: 52px;
+    min-height: 48px;
+    flex-shrink: 0;
     backdrop-filter: blur(8px);
   }
 
-  /* Messages - compact, full width */
+  /* Messages - compact, scrollable, proper padding */
   #messages {
-    padding-bottom: 5rem;
+    padding: 0.75rem 1rem 0.5rem;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0));
   }
 
   #messages .flex {
@@ -632,39 +695,49 @@ body {
   #messages .msg-user,
   #messages .msg-bot {
     max-width: 92%;
-    padding: 0.75rem 1rem;
+    padding: 0.6rem 0.9rem;
     border-radius: 1rem;
   }
 
   #messages .flex > .flex-shrink-0 {
-    width: 36px !important;
-    height: 36px !important;
-    min-width: 36px;
-    min-height: 36px;
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px;
+    min-height: 32px;
   }
 
   #messages .msg-bot .text-\[15px\],
   #messages .msg-user .text-\[15px\] {
-    font-size: 0.9375rem;
+    font-size: 0.9rem;
   }
 
-  /* Input area - safe area, space for FAB */
+  /* Input area - compact, safe area */
   .chat-form {
-    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0) + 5rem);
+    padding: 0.5rem 1rem;
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0));
+    flex-shrink: 0;
+    background: var(--bg);
   }
 
   .chat-input-wrap {
-    min-height: 44px;
+    min-height: 40px;
+    max-height: 120px;
+  }
+
+  #input {
+    max-height: 20vh;
   }
 
   #send {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
   }
 
-  /* Mobile FAB - minimalist floating buttons */
+  /* Mobile FAB - above input, tidak overlap */
   .mobile-fab {
-    padding-bottom: env(safe-area-inset-bottom, 0);
+    bottom: calc(4rem + env(safe-area-inset-bottom, 0));
   }
 
   .mobile-fab-btn {
@@ -675,12 +748,42 @@ body {
     transform: scale(0.95);
   }
 
-  /* Sidebar mobile - clean sheet style */
+  /* Sidebar mobile - solid background, konten jelas & modern */
   .sidebar-left {
     width: min(300px, 85vw);
     max-width: 85vw;
     border-radius: 0 1rem 1rem 0;
     transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    background: var(--bg) !important;
+    box-shadow: 8px 0 32px rgba(0, 0, 0, 0.12);
+    border-right: 1px solid var(--surface-deep);
+  }
+
+  .sidebar-left .suggested-q {
+    background: #ffffff !important;
+    border-color: var(--surface-deep) !important;
+    box-shadow: 0 1px 3px rgba(31, 41, 55, 0.06);
+  }
+
+  .sidebar-left .suggested-q:hover {
+    background: var(--surface) !important;
+    border-color: rgba(212, 175, 55, 0.4) !important;
+  }
+
+  .sidebar-left .sidebar-content > div:first-child {
+    background: var(--surface);
+    border-color: var(--surface-deep);
+  }
+
+  .sidebar-left #btn-how-to-use,
+  .sidebar-left #btn-clear-chat {
+    background: #ffffff !important;
+    border-color: var(--surface-deep) !important;
+  }
+
+  .sidebar-left #btn-how-to-use:hover,
+  .sidebar-left #btn-clear-chat:hover {
+    background: var(--surface) !important;
   }
 
   .sidebar-right {
@@ -689,12 +792,37 @@ body {
     border-radius: 1rem 0 0 1rem;
     transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
     padding: 1.5rem 1rem;
+    background: var(--bg) !important;
+    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.12);
+    border-left: 1px solid var(--surface-deep);
   }
 
-  /* Overlay - subtle */
+  .sidebar-right .mode-tag-btn,
+  .sidebar-right .lang-btn {
+    background: #ffffff !important;
+    border-color: var(--surface-deep) !important;
+  }
+
+  .sidebar-right .mode-tag-btn:hover,
+  .sidebar-right .lang-btn:hover {
+    background: var(--surface) !important;
+  }
+
+  .sidebar-right .mode-tag-btn.active,
+  .sidebar-right .lang-btn.active {
+    background: rgba(212, 175, 55, 0.15) !important;
+    border-color: rgba(212, 175, 55, 0.5) !important;
+  }
+
+  .sidebar-left .suggested-section h3 {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  /* Overlay - lebih gelap agar sidebar menonjol */
   .sidebar-overlay.visible {
-    background: rgba(0, 0, 0, 0.25);
-    backdrop-filter: blur(2px);
+    background: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(4px);
   }
 
   /* Modal mobile */
@@ -705,7 +833,32 @@ body {
 
   /* Typing indicator mobile */
   .typing-indicator .flex-shrink-0 {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+/* Extra small screens - lebih compact */
+@media (max-width: 380px) {
+  .chat-form {
+    padding: 0.4rem 0.75rem;
+    padding-bottom: calc(0.4rem + env(safe-area-inset-bottom, 0));
+  }
+  .chat-input-wrap {
+    min-height: 36px;
+  }
+  #send {
     width: 36px;
     height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+  }
+  .mobile-fab {
+    bottom: calc(3.5rem + env(safe-area-inset-bottom, 0));
+    left: 0.75rem;
+    right: 0.75rem;
+  }
+  .mobile-fab-btn {
+    padding: 0.5rem !important;
   }
 }

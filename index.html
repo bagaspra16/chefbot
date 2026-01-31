@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>ChefBot — Kitchen & Cooking Assistant</title>
   <meta name="description" content="Local AI chatbot for kitchen and professional cooking questions." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -37,6 +37,7 @@
     };
   </script>
   <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.8.11/dist/dotlottie-wc.js" type="module"></script>
 </head>
 <body class="min-h-screen bg-background font-sans text-text-primary antialiased" role="application" aria-label="ChefBot AI Assistant">
@@ -104,14 +105,7 @@
     </div>
   </div>
 
-  <!-- Status banner: shown when Ollama/model not ready -->
-  <div id="status-banner" class="hidden fixed top-0 left-0 right-0 z-50 px-4 py-3 bg-error/10 border-b border-error/30 text-error text-sm" role="alert">
-    <div class="max-w-3xl mx-auto flex items-center justify-between gap-4">
-      <span id="status-text"></span>
-      <button type="button" id="status-dismiss" class="flex-shrink-0 px-2 py-1 rounded hover:bg-error/20" aria-label="Dismiss">✕</button>
-    </div>
-  </div>
-  <div id="chatbot-page" class="app-layout flex h-screen overflow-hidden opacity-0 pointer-events-none transition-opacity duration-500">
+  <div id="chatbot-page" class="app-layout flex h-screen min-h-[100dvh] overflow-hidden opacity-0 pointer-events-none transition-opacity duration-500">
     <!-- Left Sidebar: Expandable/Collapsible with Suggested Questions, How to Use, Clear Chat -->
     <aside id="sidebar-left" class="sidebar-left flex-shrink-0 border-r border-surface/80 bg-surface/30 flex flex-col transition-all duration-300" role="navigation" aria-label="Chat sidebar">
       <!-- Collapsed: narrow strip with expand, how-to-use, and clear chat -->
@@ -219,12 +213,12 @@
     </aside>
 
     <!-- Center: Main Chat -->
-    <main class="flex-1 flex flex-col min-w-0 chat-main" role="main">
+    <main class="flex-1 flex flex-col min-w-0 min-h-0 chat-main" role="main">
       <header class="chat-header flex-shrink-0 px-4 lg:px-6 py-3 lg:py-4 border-b border-surface/60 flex items-center justify-center lg:justify-start bg-white/60 lg:bg-white/50">
         <h1 class="text-base lg:text-lg font-semibold text-text-primary">ChefBot</h1>
       </header>
 
-      <div id="messages" class="flex-1 overflow-y-auto px-4 lg:px-6 py-4 lg:py-6 space-y-4 lg:space-y-6" aria-live="polite" aria-label="Chat messages">
+      <div id="messages" class="flex-1 min-h-0 overflow-y-auto px-4 lg:px-6 py-4 lg:py-6 space-y-4 lg:space-y-6" aria-live="polite" aria-label="Chat messages">
         <div class="flex gap-4 max-w-2xl">
           <div class="flex-shrink-0 w-10 h-10 rounded-full bg-chefbot flex items-center justify-center shadow-soft" aria-hidden="true">
             <span class="text-xl">👨‍🍳</span>
@@ -238,7 +232,7 @@
       </div>
 
       <!-- Input Area -->
-      <form id="chat-form" class="flex-shrink-0 px-4 lg:px-6 pb-6 pt-4 chat-form" role="form" aria-label="Send a message">
+      <form id="chat-form" class="flex-shrink-0 px-4 lg:px-6 py-3 lg:py-4 chat-form" role="form" aria-label="Send a message">
         <div class="flex gap-3 items-end max-w-3xl mx-auto">
           <div class="chat-input-wrap flex-1 flex items-center min-h-12 rounded-xl bg-white px-4 shadow-input">
             <label for="input" class="sr-only">Your message</label>
@@ -276,13 +270,6 @@
       <p class="text-sm text-text-secondary text-center mb-6">Kitchen & Cooking Assistant</p>
       <div class="w-full space-y-4">
         <div>
-          <span class="text-xs font-semibold uppercase tracking-wider text-text-muted block mb-2">Services</span>
-          <div class="flex gap-2">
-            <button type="button" class="service-btn flex-1 px-3 py-2 rounded-xl text-xs font-medium border transition-all" data-service="api">API</button>
-            <button type="button" class="service-btn flex-1 px-3 py-2 rounded-xl text-xs font-medium border transition-all" data-service="docker">Docker</button>
-          </div>
-        </div>
-        <div>
           <span class="text-xs font-semibold uppercase tracking-wider text-text-muted block mb-2">Mode</span>
           <div class="flex flex-wrap gap-2">
             <button type="button" class="mode-tag-btn px-3 py-1.5 rounded-full text-xs font-medium border transition-all" data-mode="recipe">Recipe Bot</button>
@@ -300,7 +287,7 @@
         </div>
       </div>
       <div class="mt-auto pt-6 w-full">
-        <p class="text-xs text-text-muted text-center">All processing is local. No data leaves your machine.</p>
+        <p class="text-xs text-text-muted text-center">Tanpa server. Langsung siap dipakai.</p>
       </div>
     </aside>
   </div>
@@ -325,7 +312,6 @@
         <li>• Type your cooking question in the input field below.</li>
         <li>• Click a suggested question to ask instantly.</li>
         <li>• Use <strong>Clear chat</strong> to start a new conversation.</li>
-        <li>• Choose <strong>Services</strong> (API or Docker) to switch between RapidAPI ChatGPT and local Ollama.</li>
         <li>• Choose a <strong>Mode</strong> to focus on recipes, ingredients, tips, or menu planning.</li>
         <li>• Select <strong>Language</strong> (English or Indonesian) for responses.</li>
       </ul>
@@ -345,7 +331,7 @@
   <div id="sidebar-overlay" class="sidebar-overlay" aria-hidden="true"></div>
 
   <!-- Mobile: Floating action buttons -->
-  <div class="mobile-fab lg:hidden fixed bottom-24 left-4 right-4 z-20 flex justify-between pointer-events-none">
+  <div class="mobile-fab lg:hidden fixed bottom-20 left-4 right-4 z-20 flex justify-between pointer-events-none">
     <button type="button" id="btn-toggle-left" class="mobile-fab-btn p-3 rounded-2xl bg-white/95 backdrop-blur border border-surface/60 text-accent shadow-soft pointer-events-auto" aria-label="Suggested questions">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
     </button>
