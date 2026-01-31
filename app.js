@@ -86,6 +86,10 @@
   let cachedApiKey = null;
   async function loadEnv() {
     if (cachedApiKey !== null && cachedApiKey !== '') return cachedApiKey;
+    if (typeof window !== 'undefined' && window.CHEFBOT_RAPIDAPI_KEY) {
+      cachedApiKey = String(window.CHEFBOT_RAPIDAPI_KEY).trim();
+      if (cachedApiKey) return cachedApiKey;
+    }
     for (const file of ['./config.env', 'config.env', '.env']) {
       try {
         const res = await fetch(file);
