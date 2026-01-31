@@ -4,8 +4,8 @@ AI chatbot untuk dapur dan memasak. **Tanpa server**—buka index.html saja, fet
 
 ## Quick Start
 
-1. **Salin `.env.example` ke `config.env`** dan isi `RAPIDAPI_KEY` dari [rapidapi.com/chatgpt-42](https://rapidapi.com/rphrp1985/api/chatgpt-42)
-2. **Buka index.html** via Live Server
+1. **Salin `config.env.example` ke `config.env`** (atau copy `.env` ke `config.env`) dan isi `RAPIDAPI_KEY` dari [rapidapi.com/chatgpt-42](https://rapidapi.com/rphrp1985/api/chatgpt-42)
+2. **Buka index.html via Live Server** (wajib—jangan buka dengan file://)
 
 ## Fitur
 

@@ -85,20 +85,23 @@
 
   let cachedApiKey = null;
   async function loadEnv() {
-    if (cachedApiKey !== null) return cachedApiKey;
-    for (const file of ['config.env', '.env']) {
+    if (cachedApiKey !== null && cachedApiKey !== '') return cachedApiKey;
+    for (const file of ['./config.env', 'config.env', '.env']) {
       try {
         const res = await fetch(file);
         if (!res.ok) continue;
         const text = await res.text();
         const m = text.match(/RAPIDAPI_KEY\s*=\s*(.+)/);
         if (m) {
-          cachedApiKey = m[1].trim().replace(/^["']|["']$/g, '');
-          break;
+          const key = m[1].trim().replace(/^["']|["']$/g, '').split(/\s*#/)[0].trim();
+          if (key) {
+            cachedApiKey = key;
+            return cachedApiKey;
+          }
         }
       } catch (_) {}
     }
-    if (cachedApiKey === null) cachedApiKey = '';
+    cachedApiKey = '';
     return cachedApiKey;
   }
 
@@ -281,7 +284,7 @@
 
     const apiKey = await loadEnv();
     if (!apiKey) {
-      addMessage(currentLanguage === 'id' ? 'API key belum diatur. Salin .env.example ke config.env dan isi RAPIDAPI_KEY' : 'API key not set. Copy .env.example to config.env and add RAPIDAPI_KEY', 'bot', true);
+      addMessage(currentLanguage === 'id' ? 'API key belum terbaca. Pastikan: (1) Buka via Live Server (bukan file://), (2) File config.env ada di folder yang sama dengan index.html, (3) Isi: RAPIDAPI_KEY=your_key' : 'API key not found. Ensure: (1) Open via Live Server (not file://), (2) config.env exists in same folder as index.html, (3) Format: RAPIDAPI_KEY=your_key', 'bot', true);
       return;
     }
     const domain = checkDomain(raw);
