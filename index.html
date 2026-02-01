@@ -214,8 +214,18 @@
 
     <!-- Center: Main Chat -->
     <main class="flex-1 flex flex-col min-w-0 min-h-0 chat-main" role="main">
-      <header class="chat-header flex-shrink-0 px-4 lg:px-6 py-3 lg:py-4 border-b border-surface/60 flex items-center justify-center lg:justify-start bg-white/60 lg:bg-white/50">
-        <h1 class="text-base lg:text-lg font-semibold text-text-primary">ChefBot</h1>
+      <header class="chat-header flex-shrink-0 px-4 lg:px-6 py-3 lg:py-4 border-b border-surface/60 flex items-center justify-between bg-white/60 lg:bg-white/50">
+        <div class="w-9 flex-shrink-0 flex justify-start">
+          <button type="button" id="btn-toggle-left" class="header-sidebar-btn lg:hidden p-2 -m-2 rounded-lg hover:bg-surface/60 transition-colors text-accent" aria-label="Suggested questions">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+        </div>
+        <h1 class="text-base lg:text-lg font-semibold text-text-primary flex-1 text-center">ChefBot</h1>
+        <div class="w-9 flex-shrink-0 flex justify-end">
+          <button type="button" id="btn-toggle-right" class="header-sidebar-btn lg:hidden p-2 -m-2 rounded-lg hover:bg-surface/60 transition-colors text-accent" aria-label="Mode & Language">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          </button>
+        </div>
       </header>
 
       <div id="messages" class="flex-1 min-h-0 overflow-y-auto px-4 lg:px-6 py-4 lg:py-6 space-y-4 lg:space-y-6" aria-live="polite" aria-label="Chat messages">
@@ -259,6 +269,8 @@
         </div>
         <p id="input-hint" class="sr-only">Press Enter to send; Shift+Enter for new line.</p>
       </form>
+      <!-- Overlay hanya menutupi main (blur konten chat), sidebar tetap tajam -->
+      <div id="sidebar-overlay" class="sidebar-overlay" aria-hidden="true"></div>
     </main>
 
     <!-- Right Sidebar: Branding, Mode & Language -->
@@ -381,19 +393,6 @@
       <div class="config-spinner"></div>
       <p class="text-sm text-text-primary">Applying configuration…</p>
     </div>
-  </div>
-
-  <!-- Overlay for mobile sidebar close -->
-  <div id="sidebar-overlay" class="sidebar-overlay" aria-hidden="true"></div>
-
-  <!-- Mobile: Floating action buttons -->
-  <div class="mobile-fab lg:hidden fixed bottom-20 left-4 right-4 z-20 flex justify-between pointer-events-none">
-    <button type="button" id="btn-toggle-left" class="mobile-fab-btn p-3 rounded-2xl bg-white/95 backdrop-blur border border-surface/60 text-accent shadow-soft pointer-events-auto" aria-label="Suggested questions">
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-    </button>
-    <button type="button" id="btn-toggle-right" class="mobile-fab-btn p-3 rounded-2xl bg-white/95 backdrop-blur border border-surface/60 text-accent shadow-soft pointer-events-auto" aria-label="Mode & Language">
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-    </button>
   </div>
 
   <!-- Untuk server deployment: set API key di sini jika config.env tidak tersedia -->

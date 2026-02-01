@@ -78,8 +78,8 @@
   const sendBtn = document.getElementById('send');
   const messagesEl = document.getElementById('messages');
 
-  const RAPIDAPI_URL = 'https://chatgpt-42.p.rapidapi.com/chat';
-  const RAPIDAPI_HOST = 'chatgpt-42.p.rapidapi.com';
+  const RAPIDAPI_URL = 'https://open-ai21.p.rapidapi.com/chatgpt';
+  const RAPIDAPI_HOST = 'open-ai21.p.rapidapi.com';
   const SESSION_KEY = 'chefbot-session-context';
   const MAX_CONTEXT = 18;
 
