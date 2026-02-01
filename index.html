@@ -241,34 +241,39 @@
         </div>
       </div>
 
-      <!-- Input Area -->
-      <form id="chat-form" class="flex-shrink-0 px-4 lg:px-6 py-3 lg:py-4 chat-form" role="form" aria-label="Send a message">
-        <div class="flex gap-3 items-end max-w-3xl mx-auto">
-          <div class="chat-input-wrap flex-1 flex items-center min-h-12 rounded-xl bg-white px-4 shadow-input">
-            <label for="input" class="sr-only">Your message</label>
-            <textarea
-              id="input"
-              name="message"
-              rows="1"
-              maxlength="2000"
-              placeholder="Tanya apa saja tentang masakan..."
-              class="flex-1 min-h-[24px] max-h-[28vh] resize-none bg-transparent py-0 px-0 text-text-primary placeholder-text-muted text-[15px] leading-relaxed"
-              aria-describedby="input-hint"
-            ></textarea>
+      <!-- Input Area + Footer (mobile: fixed di bawah layar) -->
+      <div class="mobile-bottom-bar">
+        <form id="chat-form" class="flex-shrink-0 px-4 lg:px-6 py-3 lg:py-4 chat-form" role="form" aria-label="Send a message">
+          <div class="flex gap-3 items-end max-w-3xl mx-auto">
+            <div class="chat-input-wrap flex-1 flex items-center min-h-12 rounded-xl bg-white px-4 shadow-input">
+              <label for="input" class="sr-only">Your message</label>
+              <textarea
+                id="input"
+                name="message"
+                rows="1"
+                maxlength="2000"
+                placeholder="Tanya apa saja tentang masakan..."
+                class="flex-1 min-h-[24px] max-h-[28vh] resize-none bg-transparent py-0 px-0 text-text-primary placeholder-text-muted text-[15px] leading-relaxed"
+                aria-describedby="input-hint"
+              ></textarea>
+            </div>
+            <button
+              type="submit"
+              id="send"
+              class="flex-shrink-0 h-12 w-12 rounded-xl bg-accent text-white hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-soft"
+              aria-label="Send message"
+            >
+              <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+            </button>
           </div>
-          <button
-            type="submit"
-            id="send"
-            class="flex-shrink-0 h-12 w-12 rounded-xl bg-accent text-white hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-soft"
-            aria-label="Send message"
-          >
-            <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-            </svg>
-          </button>
-        </div>
-        <p id="input-hint" class="sr-only">Press Enter to send; Shift+Enter for new line.</p>
-      </form>
+          <p id="input-hint" class="sr-only">Press Enter to send; Shift+Enter for new line.</p>
+        </form>
+        <footer class="chat-footer lg:hidden px-4 py-2 text-center text-xs text-text-muted border-t border-surface/60 bg-white/80">
+          No server. Ready to use.
+        </footer>
+      </div>
       <!-- Overlay hanya menutupi main (blur konten chat), sidebar tetap tajam -->
       <div id="sidebar-overlay" class="sidebar-overlay" aria-hidden="true"></div>
     </main>

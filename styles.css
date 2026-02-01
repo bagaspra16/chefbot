@@ -239,15 +239,19 @@
 html {
   height: 100%;
   overflow: hidden;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 body {
   background-color: var(--bg);
   overflow: hidden;
+  overflow-x: hidden;
   min-height: 100%;
   min-height: 100dvh;
   height: 100%;
   -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
 }
 
 /* App layout */
@@ -752,6 +756,11 @@ body {
   pointer-events: auto;
 }
 
+/* Mobile bottom bar - wrapper untuk form + footer */
+.mobile-bottom-bar {
+  flex-shrink: 0;
+}
+
 /* Textarea auto-resize - expands for long paste, max 28vh */
 #input {
   min-height: 24px;
@@ -813,13 +822,19 @@ body {
 
 /* ========== Mobile Chatbot - Flexible & Dynamic ========== */
 @media (max-width: 1023px) {
-  /* Viewport - fixed fill untuk 100% menyesuaikan device, input selalu terlihat */
+  /* Viewport - fit layar mobile, tidak perlu scroll untuk temukan input */
+  html, body {
+    height: 100svh;
+    max-height: 100svh;
+    overflow: hidden;
+  }
   .app-layout {
     position: fixed;
     inset: 0;
     width: 100%;
     height: 100%;
-    height: 100dvh;
+    height: 100svh;
+    max-height: 100svh;
     min-height: -webkit-fill-available;
     overflow: hidden;
   }
@@ -840,13 +855,14 @@ body {
     backdrop-filter: blur(8px);
   }
 
-  /* Messages - scrollable, flex-1 mengambil sisa ruang */
+  /* Messages - scrollable, padding-bottom untuk fixed input+footer */
   #messages {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
     padding: 0.75rem 1rem 0.5rem;
-    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0));
+    padding-bottom: 11rem;
+    padding-bottom: calc(11rem + env(safe-area-inset-bottom, 0));
   }
 
   #messages .flex {
@@ -872,16 +888,29 @@ body {
     font-size: 0.9rem;
   }
 
-  /* Input area - selalu terlihat di bawah */
+  /* Input + Footer - FIXED di bawah layar agar selalu terlihat */
+  .mobile-bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    background: var(--bg);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+  }
+
   .chat-form {
     flex-shrink: 0;
-    padding: 0.5rem 1rem;
-    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0));
+    padding: 0.5rem 1rem 0.25rem;
     background: var(--bg);
   }
 
+  .chat-footer {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
   .chat-input-wrap {
-    min-height: 40px;
+    min-height: 44px;
     max-height: 120px;
   }
 
@@ -890,10 +919,10 @@ body {
   }
 
   #send {
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
-    min-height: 40px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   /* Header sidebar buttons - mobile only */
@@ -1032,17 +1061,20 @@ body {
 
 /* Extra small screens - lebih compact */
 @media (max-width: 380px) {
+  #messages {
+    padding-bottom: 10rem;
+    padding-bottom: calc(10rem + env(safe-area-inset-bottom, 0));
+  }
   .chat-form {
-    padding: 0.4rem 0.75rem;
-    padding-bottom: calc(0.4rem + env(safe-area-inset-bottom, 0));
+    padding: 0.4rem 0.75rem 0.2rem;
   }
   .chat-input-wrap {
-    min-height: 36px;
+    min-height: 40px;
   }
   #send {
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
-    min-height: 36px;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
   }
 }
