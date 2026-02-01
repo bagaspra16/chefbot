@@ -126,24 +126,26 @@
     const redirect = language === 'id'
       ? 'Saya ChefBot, asisten dapur. Saya hanya membantu soal masakan—resep, bahan, teknik. Apa yang ingin Anda tanya?'
       : 'I\'m ChefBot, your kitchen assistant. I only help with cooking—recipes, ingredients, techniques. What would you like to know?';
-    return `You are ChefBot, a kitchen and cooking expert. ${l.rule} MODE: ${mode}. ${m.focus} Format: ${m.format} CRITICAL: Answer ONLY cooking questions. If the user says hello, asks how you are, or any non-cooking question, respond ONLY with this exact phrase and nothing else: "${redirect}"`;
+    return `You are ChefBot, a kitchen and cooking expert. ${l.rule} MODE: ${mode}. ${m.focus} Format: ${m.format} CRITICAL RULES: (1) NEVER say "Hello!", "I'm doing well", "How about you?", or any greeting/small talk. (2) Answer ONLY cooking questions. (3) If the user says hello or asks how you are, respond ONLY with this exact phrase: "${redirect}"`;
   }
   function buildUserMessage(msg, mode, language) {
     const tag = language === 'id' ? '[BAHASA: Indonesia]' : '[LANGUAGE: English]';
     return `${tag} [MODE: ${mode}]\n\n${msg}`;
   }
   const OFF_TOPIC_START = [
-    /^(hi|hello|hey|halo|hai|yo)\s*[!?.,]*$/i,
-    /^how\s+(are|is)\s+(you|it)\b/i,
+    /^(hi|hello|hey|halo|hai|yo|hii|helloo?)\s*[!?.,]*$/i,
+    /^how\s+(are|is|r)\s+(you|it|u)\b/i,
     /^how'?s\s+(it\s+)?going/i,
     /^what'?s\s+up/i,
     /^apa\s+kabar/i,
-    /^good\s+(morning|afternoon|evening|night)\b/i,
-    /^(thanks|thank\s+you|thx)\s*[!?.,]*$/i,
-    /^(bye|goodbye|see\s+you)\s*[!?.,]*$/i,
-    /^(ok|okay|yes|no)\s*[!?.,]*$/i,
-    /^nice\s+to\s+meet\s+you/i,
+    /^good\s+(morning|afternoon|evening|night|day)\b/i,
+    /^(thanks|thank\s+you|thx|ty)\s*[!?.,]*$/i,
+    /^(bye|goodbye|see\s+you|good\s+bye)\s*[!?.,]*$/i,
+    /^(ok|okay|yes|no|yep|nope)\s*[!?.,]*$/i,
+    /^nice\s+to\s+(meet|talk)\s+(you|u)/i,
     /^how\s+about\s+you\s*[!?.,]*$/i,
+    /^(what|how)\s+(about|are)\s+you\s*[!?.,]*$/i,
+    /^how\s+do\s+you\s+do\b/i,
   ];
   const OFF_TOPIC_CONTAINS = [
     /\bhow\s+are\s+you\b/i,
@@ -152,6 +154,9 @@
     /\bwhat'?s\s+up\b/i,
     /\bapa\s+kabar\b/i,
     /\b(hi|hello|hey)\s*[,!?]?\s*(how|what)/i,
+    /\bhow\s+are\s+things\b/i,
+    /\bhow\s+have\s+you\s+been\b/i,
+    /\bwhat'?s\s+new\b/i,
   ];
   const COOKING_WORDS = ['recipe', 'cook', 'food', 'ingredient', 'kitchen', 'meal', 'dish', 'masak', 'resep', 'bahan', 'makanan', 'dapur', 'menu', 'substitute', 'storage', 'temperature', 'baking', 'sauce', 'soup', 'salad', 'rice', 'noodle', 'meat', 'vegetable', 'spice', 'herb', 'make', 'bake', 'fry', 'boil', 'grill', 'chop', 'pasta', 'chicken', 'beef', 'fish', 'egg', 'flour', 'sugar', 'salt', 'oil'];
   function getRedirectMsg() {
@@ -189,10 +194,33 @@
     for (const re of footerPatterns) out = out.replace(re, '');
     return out.trim();
   }
+  const GREETING_RESPONSE_PATTERNS = [
+    /^hello!?\s*(i'?m|i am)\s+(doing\s+)?well/i,
+    /^hi!?\s*(i'?m|i am)\s+(doing\s+)?well/i,
+    /^hey!?\s*(i'?m|i am)\s+(doing\s+)?well/i,
+    /i'?m\s+(doing\s+)?well,?\s*thank\s+you/i,
+    /how\s+about\s+you\s*[!?.,]*\s*$/i,
+    /^(hello|hi|hey)!?\s*[!?.,]*\s*$/i,
+    /^(i'?m|i am)\s+(fine|good|great|well|doing\s+well)/i,
+    /thank\s+you\s+for\s+asking/i,
+    /nice\s+to\s+(meet|talk)\s+you/i,
+  ];
+  function isGreetingResponse(text) {
+    if (!text || typeof text !== 'string') return false;
+    const t = text.trim().toLowerCase();
+    if (t.length > 200) return false;
+    return GREETING_RESPONSE_PATTERNS.some(p => p.test(text));
+  }
   function markdownToHtml(text) {
     if (!text || typeof text !== 'string') return '';
     if (typeof marked === 'undefined') return text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    return marked.parse(text, { gfm: true, breaks: true });
+    let html = marked.parse(text, { gfm: true, breaks: true });
+    html = html.replace(/<table>/g, '<div class="msg-table-wrap"><table>').replace(/<\/table>/g, '</table></div>');
+    return html;
+  }
+  function getPlainTextFromElement(el) {
+    if (!el) return '';
+    return el.innerText || el.textContent || '';
   }
   function getSessionContext() {
     try { const s = sessionStorage.getItem(SESSION_KEY); return s ? JSON.parse(s) : []; } catch { return []; }
@@ -241,6 +269,9 @@
     }
   }
 
+  const COPY_ICON = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>';
+  const CHECK_ICON = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
+
   function addMessage(content, role, denied) {
     const wrap = document.createElement('div');
     wrap.className = 'flex gap-4 max-w-2xl ' + (role === 'user' ? 'flex-row-reverse ml-auto' : '');
@@ -257,12 +288,15 @@
       avatar.innerHTML = '<span class="text-xl">👨‍🍳</span>';
     }
 
+    const bubbleWrap = document.createElement('div');
+    bubbleWrap.className = 'flex-1 msg-bubble-wrap';
+
     const bubble = document.createElement('div');
-    bubble.className = 'flex-1 rounded-2xl px-5 py-4 shadow-soft msg-' + (role === 'user' ? 'user' : 'bot');
+    bubble.className = 'rounded-2xl px-5 py-4 shadow-soft msg-' + (role === 'user' ? 'user' : 'bot');
     if (denied) bubble.classList.add('msg-denied');
 
     const text = document.createElement('div');
-    text.className = 'text-[15px] text-text-primary break-words msg-content leading-relaxed';
+    text.className = 'text-[15px] text-text-primary break-words msg-content leading-relaxed pr-10';
     if (role === 'bot' && !denied) {
       text.innerHTML = markdownToHtml(content);
       text.classList.add('msg-markdown');
@@ -270,9 +304,48 @@
       text.textContent = content;
     }
 
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'msg-copy-btn';
+    copyBtn.innerHTML = COPY_ICON;
+    copyBtn.setAttribute('aria-label', currentLanguage === 'id' ? 'Salin' : 'Copy');
+    copyBtn.addEventListener('click', function () {
+      const plainText = getPlainTextFromElement(text);
+      if (!plainText) return;
+      navigator.clipboard.writeText(plainText).then(function () {
+        copyBtn.innerHTML = CHECK_ICON;
+        copyBtn.classList.add('copied');
+        copyBtn.setAttribute('aria-label', currentLanguage === 'id' ? 'Tersalin!' : 'Copied!');
+        setTimeout(function () {
+          copyBtn.innerHTML = COPY_ICON;
+          copyBtn.classList.remove('copied');
+          copyBtn.setAttribute('aria-label', currentLanguage === 'id' ? 'Salin' : 'Copy');
+        }, 2000);
+      }).catch(function () {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = plainText;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          copyBtn.innerHTML = CHECK_ICON;
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.innerHTML = COPY_ICON;
+            copyBtn.classList.remove('copied');
+          }, 2000);
+        } catch (_) {}
+      });
+    });
+
     bubble.appendChild(text);
+    bubble.appendChild(copyBtn);
+    bubbleWrap.appendChild(bubble);
     wrap.appendChild(avatar);
-    wrap.appendChild(bubble);
+    wrap.appendChild(bubbleWrap);
     messagesEl.appendChild(wrap);
     scrollToBottom();
   }
@@ -329,7 +402,8 @@
         return;
       }
 
-      const cleanedReply = cleanApiFooter(reply);
+      let cleanedReply = cleanApiFooter(reply);
+      if (isGreetingResponse(cleanedReply)) cleanedReply = getRedirectMsg();
       addMessage(cleanedReply, 'bot', false);
       ctx.push({ role: 'user', content: raw });
       ctx.push({ role: 'assistant', content: cleanedReply });
@@ -476,9 +550,62 @@
         currentLanguage = lang;
         document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
         this.classList.add('active');
+        updateQuickActionLabels();
+        updateTipLabels();
       });
     });
   });
+
+  function updateQuickActionLabels() {
+    document.querySelectorAll('.quick-action-btn').forEach(btn => {
+      const label = btn.querySelector('.quick-action-label');
+      if (label) label.textContent = currentLanguage === 'id' ? (btn.getAttribute('data-label-id') || '') : (btn.getAttribute('data-label-en') || '');
+    });
+  }
+  function updateTipLabels() {
+    const tips = {
+      en: ['Prevent onion tears', 'Store herbs longer', 'Chicken safe temp', 'Fluffy rice'],
+      id: ['Cegah bawang bikin menangis', 'Simpan herbal tahan lama', 'Suhu aman ayam', 'Nasi pulen']
+    };
+    const arr = currentLanguage === 'id' ? tips.id : tips.en;
+    document.querySelectorAll('.tip-btn .tip-label').forEach((el, i) => { if (arr[i]) el.textContent = arr[i]; });
+  }
+
+  document.querySelectorAll('.quick-action-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+      const q = currentLanguage === 'id' ? this.getAttribute('data-q-id') : this.getAttribute('data-q-en');
+      if (q) { submitMessage(q); if (window.innerWidth < 1024) closeSidebars(); }
+    });
+  });
+
+  document.querySelectorAll('.tip-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+      const q = currentLanguage === 'id' ? this.getAttribute('data-tip-id') : this.getAttribute('data-tip-en');
+      if (q) { submitMessage(q); if (window.innerWidth < 1024) closeSidebars(); }
+    });
+  });
+
+  function runConverter() {
+    const inp = document.getElementById('conv-input');
+    const out = document.getElementById('conv-result');
+    const from = document.getElementById('conv-from')?.value;
+    const to = document.getElementById('conv-to')?.value;
+    const val = parseFloat(inp?.value) || 0;
+    if (!from || !to || !out) return;
+    let result = null;
+    if (from === to) result = val;
+    else if (from === 'tbsp' && to === 'cup') result = val / 16;
+    else if (from === 'cup' && to === 'tbsp') result = val * 16;
+    else if (from === 'g' && to === 'oz') result = val / 28.35;
+    else if (from === 'oz' && to === 'g') result = val * 28.35;
+    else if (from === 'c' && to === 'f') result = (val * 9/5) + 32;
+    else if (from === 'f' && to === 'c') result = (val - 32) * 5/9;
+    out.value = result !== null && !isNaN(result) ? (result < 0.01 && result > 0 ? result.toFixed(4) : result.toFixed(2)) : '—';
+  }
+  document.getElementById('conv-input')?.addEventListener('input', runConverter);
+  document.getElementById('conv-from')?.addEventListener('change', runConverter);
+  document.getElementById('conv-to')?.addEventListener('change', runConverter);
+  runConverter();
 
   // Set initial active states
   document.querySelector(`.mode-tag-btn[data-mode="${currentMode}"]`)?.classList.add('active');

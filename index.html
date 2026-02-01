@@ -268,7 +268,7 @@
       </div>
       <h2 class="text-lg font-semibold text-text-primary text-center mb-1">ChefBot</h2>
       <p class="text-sm text-text-secondary text-center mb-6">Kitchen & Cooking Assistant</p>
-      <div class="w-full space-y-4">
+      <div class="sidebar-right-content flex-1 min-h-0 overflow-y-auto w-full space-y-4">
         <div>
           <span class="text-xs font-semibold uppercase tracking-wider text-text-muted block mb-2">Mode</span>
           <div class="flex flex-wrap gap-2">
@@ -285,9 +285,63 @@
             <button type="button" class="lang-btn flex-1 px-3 py-2 rounded-xl text-xs font-medium border transition-all" data-lang="id">Indonesia</button>
           </div>
         </div>
+        <!-- Quick Actions -->
+        <div>
+          <span class="text-xs font-semibold uppercase tracking-wider text-text-muted block mb-2">Quick Actions</span>
+          <div class="flex flex-col gap-2">
+            <button type="button" class="quick-action-btn w-full px-3 py-2 rounded-xl text-xs font-medium border transition-all text-left flex items-center gap-2" data-q-en="What are some quick dinner ideas for tonight?" data-q-id="Ide makan malam yang cepat untuk malam ini?" data-label-en="Dinner ideas" data-label-id="Ide makan malam">
+              <span>🍽️</span><span class="quick-action-label">Dinner ideas</span>
+            </button>
+            <button type="button" class="quick-action-btn w-full px-3 py-2 rounded-xl text-xs font-medium border transition-all text-left flex items-center gap-2" data-q-en="Give me a 15-minute recipe" data-q-id="Resep masakan 15 menit yang mudah?" data-label-en="15-min recipe" data-label-id="Resep 15 menit">
+              <span>⏱️</span><span class="quick-action-label">15-min recipe</span>
+            </button>
+            <button type="button" class="quick-action-btn w-full px-3 py-2 rounded-xl text-xs font-medium border transition-all text-left flex items-center gap-2" data-q-en="What can I substitute for eggs in baking?" data-q-id="Apa pengganti telur untuk baking?" data-label-en="Egg substitute" data-label-id="Pengganti telur">
+              <span>🥚</span><span class="quick-action-label">Egg substitute</span>
+            </button>
+          </div>
+        </div>
+        <!-- Unit Converter -->
+        <div>
+          <span class="text-xs font-semibold uppercase tracking-wider text-text-muted block mb-2">Unit Converter</span>
+          <div class="converter-wrap rounded-xl border p-3 space-y-2">
+            <div class="flex gap-2 items-center">
+              <input type="number" id="conv-input" value="1" placeholder="1" min="0" step="0.1" class="conv-input w-16 px-2 py-1.5 rounded-lg border border-surface/80 bg-white text-sm text-text-primary" />
+              <select id="conv-from" class="conv-select flex-1 px-2 py-1.5 rounded-lg border border-surface/80 bg-white text-xs text-text-primary">
+                <option value="tbsp">tbsp</option>
+                <option value="cup">cup</option>
+                <option value="g">gram</option>
+                <option value="oz">oz</option>
+                <option value="c">°C</option>
+                <option value="f">°F</option>
+              </select>
+            </div>
+            <div class="text-center text-text-muted text-xs">→</div>
+            <div class="flex gap-2 items-center">
+              <input type="text" id="conv-result" readonly placeholder="—" class="conv-result w-16 px-2 py-1.5 rounded-lg border border-surface/80 bg-surface/40 text-sm text-text-primary" />
+              <select id="conv-to" class="conv-select flex-1 px-2 py-1.5 rounded-lg border border-surface/80 bg-white text-xs text-text-primary">
+                <option value="tbsp">tbsp</option>
+                <option value="cup" selected>cup</option>
+                <option value="g">gram</option>
+                <option value="oz">oz</option>
+                <option value="c">°C</option>
+                <option value="f">°F</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <!-- Quick Tips -->
+        <div>
+          <span class="text-xs font-semibold uppercase tracking-wider text-text-muted block mb-2">Quick Tips</span>
+          <div class="tips-wrap space-y-2">
+            <button type="button" class="tip-btn w-full px-3 py-2 rounded-xl text-xs text-left border transition-all" data-tip-en="How do I prevent onions from making me cry?" data-tip-id="Cara mencegah bawang bikin mata berair?">🧅 <span class="tip-label">Prevent onion tears</span></button>
+            <button type="button" class="tip-btn w-full px-3 py-2 rounded-xl text-xs text-left border transition-all" data-tip-en="How do I store fresh herbs longer?" data-tip-id="Cara menyimpan daun herbal agar tahan lama?">🌿 <span class="tip-label">Store herbs longer</span></button>
+            <button type="button" class="tip-btn w-full px-3 py-2 rounded-xl text-xs text-left border transition-all" data-tip-en="What's the safe internal temperature for chicken?" data-tip-id="Suhu aman daging ayam matang?">🌡️ <span class="tip-label">Chicken safe temp</span></button>
+            <button type="button" class="tip-btn w-full px-3 py-2 rounded-xl text-xs text-left border transition-all" data-tip-en="How do I make fluffy rice?" data-tip-id="Cara memasak nasi yang pulen?">🍚 <span class="tip-label">Fluffy rice</span></button>
+          </div>
+        </div>
       </div>
-      <div class="mt-auto pt-6 w-full">
-        <p class="text-xs text-text-muted text-center">Tanpa server. Langsung siap dipakai.</p>
+      <div class="mt-auto pt-4 w-full">
+        <p class="text-xs text-text-muted text-center">No server. Ready to use.</p>
       </div>
     </aside>
   </div>
@@ -311,9 +365,11 @@
       <ul class="text-sm text-text-secondary space-y-2 mb-6">
         <li>• Type your cooking question in the input field below.</li>
         <li>• Click a suggested question to ask instantly.</li>
+        <li>• Use <strong>Quick Actions</strong> for dinner ideas, 15-min recipes, egg substitutes.</li>
+        <li>• Use <strong>Unit Converter</strong> for tbsp↔cup, gram↔oz, °C↔°F.</li>
+        <li>• Click <strong>Quick Tips</strong> for cooking hacks (onion tears, herbs, chicken temp, rice).</li>
         <li>• Use <strong>Clear chat</strong> to start a new conversation.</li>
-        <li>• Choose a <strong>Mode</strong> to focus on recipes, ingredients, tips, or menu planning.</li>
-        <li>• Select <strong>Language</strong> (English or Indonesian) for responses.</li>
+        <li>• Choose <strong>Mode</strong> and <strong>Language</strong> in the right sidebar.</li>
       </ul>
       <button type="button" id="modal-howto-close" class="w-full px-4 py-2 rounded-xl bg-accent text-white hover:bg-accent-hover transition-colors">Got it</button>
     </div>
