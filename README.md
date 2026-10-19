@@ -1,19 +1,22 @@
 # ChefBot
 
-AI chatbot untuk dapur dan memasak. **Tanpa server**—buka index.html saja, fetch langsung ke RapidAPI.
+AI chatbot untuk dapur dan memasak. **Tanpa server**—buka index.html saja, fetch langsung ke Groq API (`openai/gpt-oss-120b`).
 
 ## Quick Start
 
-1. **Salin `config.env.example` ke `config.env`** (atau copy `.env` ke `config.env`) dan isi `RAPIDAPI_KEY` dari [rapidapi.com/chatgpt-42](https://rapidapi.com/rphrp1985/api/chatgpt-42)
-2. **Buka index.html via Live Server** (wajib—jangan buka dengan file://)
+1. **Salin `config.env.example` ke `config.env`** dan isi `GROQ_API_KEY` dari [console.groq.com/keys](https://console.groq.com/keys)
+2. **Buka index.html via Live Server** (atau web server lokal)
 
 ## Fitur
 
-- Tanpa Node.js/npm—cukup HTML + config.env
-- API key dari `config.env`—Live Server tidak menyajikan file `.env`, jadi pakai `config.env`
+- Menggunakan Groq API super cepat dengan model `openai/gpt-oss-120b`
+- Streaming respons real-time
+- Tanpa Node.js/npm backend—cukup HTML + JS client
 - Mode: Recipe Bot, Ingredient Expert, Kitchen Tips, Menu Planner
 - Bahasa: English / Indonesia
+- Unit converter, cooking quick tips, & quick actions
 
 ## Catatan
 
-- **Wajib** gunakan Live Server (bukan file://) agar `config.env` bisa dibaca
+- Gunakan Live Server atau web server lokal agar `config.env` dapat dimuat oleh browser.
+- Key juga dapat dikonfigurasi langsung di `index.html` pada `window.CHEFBOT_GROQ_API_KEY`.

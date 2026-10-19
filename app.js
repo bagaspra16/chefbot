@@ -78,24 +78,28 @@
   const sendBtn = document.getElementById('send');
   const messagesEl = document.getElementById('messages');
 
-  const RAPIDAPI_URL = 'https://open-ai21.p.rapidapi.com/chatgpt';
-  const RAPIDAPI_HOST = 'open-ai21.p.rapidapi.com';
+  const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+  const GROQ_MODEL = 'openai/gpt-oss-120b';
+  const DEFAULT_API_KEY = '';
   const SESSION_KEY = 'chefbot-session-context';
   const MAX_CONTEXT = 18;
 
   let cachedApiKey = null;
   async function loadEnv() {
     if (cachedApiKey !== null && cachedApiKey !== '') return cachedApiKey;
-    if (typeof window !== 'undefined' && window.CHEFBOT_RAPIDAPI_KEY) {
-      cachedApiKey = String(window.CHEFBOT_RAPIDAPI_KEY).trim();
-      if (cachedApiKey) return cachedApiKey;
+    if (typeof window !== 'undefined') {
+      const winKey = window.CHEFBOT_GROQ_API_KEY || window.CHEFBOT_API_KEY || window.CHEFBOT_RAPIDAPI_KEY;
+      if (winKey && String(winKey).trim()) {
+        cachedApiKey = String(winKey).trim();
+        return cachedApiKey;
+      }
     }
     for (const file of ['./config.env', 'config.env', '.env']) {
       try {
         const res = await fetch(file);
         if (!res.ok) continue;
         const text = await res.text();
-        const m = text.match(/RAPIDAPI_KEY\s*=\s*(.+)/);
+        const m = text.match(/(?:GROQ_API_KEY|API_KEY|RAPIDAPI_KEY)\s*=\s*(.+)/);
         if (m) {
           const key = m[1].trim().replace(/^["']|["']$/g, '').split(/\s*#/)[0].trim();
           if (key) {
@@ -104,6 +108,10 @@
           }
         }
       } catch (_) {}
+    }
+    if (DEFAULT_API_KEY) {
+      cachedApiKey = DEFAULT_API_KEY;
+      return cachedApiKey;
     }
     cachedApiKey = '';
     return cachedApiKey;
@@ -174,7 +182,7 @@
     if (!COOKING_WORDS.some(w => t.includes(w)) && t.length < 25) return { allowed: false, message: getRedirectMsg() };
     return { allowed: true };
   }
-  function extractRapidAPIResponse(data) {
+  function extractGroqResponse(data) {
     if (!data || typeof data !== 'object') return '';
     const c = data.choices?.[0]?.message?.content;
     if (typeof c === 'string' && c.trim()) return c.trim();
@@ -350,6 +358,95 @@
     scrollToBottom();
   }
 
+  function createStreamingBotMessage() {
+    const wrap = document.createElement('div');
+    wrap.className = 'flex gap-4 max-w-2xl';
+    wrap.setAttribute('role', 'listitem');
+
+    const avatar = document.createElement('div');
+    avatar.className = 'flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center shadow-soft overflow-hidden bg-chefbot';
+    avatar.setAttribute('aria-hidden', 'true');
+    avatar.innerHTML = '<span class="text-xl">👨‍🍳</span>';
+
+    const bubbleWrap = document.createElement('div');
+    bubbleWrap.className = 'flex-1 msg-bubble-wrap';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'rounded-2xl px-5 py-4 shadow-soft msg-bot';
+
+    const text = document.createElement('div');
+    text.className = 'text-[15px] text-text-primary break-words msg-content leading-relaxed pr-10 msg-markdown';
+    text.innerHTML = '';
+
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'msg-copy-btn';
+    copyBtn.innerHTML = COPY_ICON;
+    copyBtn.setAttribute('aria-label', currentLanguage === 'id' ? 'Salin' : 'Copy');
+    copyBtn.addEventListener('click', function () {
+      const plainText = getPlainTextFromElement(text);
+      if (!plainText) return;
+      navigator.clipboard.writeText(plainText).then(function () {
+        copyBtn.innerHTML = CHECK_ICON;
+        copyBtn.classList.add('copied');
+        copyBtn.setAttribute('aria-label', currentLanguage === 'id' ? 'Tersalin!' : 'Copied!');
+        setTimeout(function () {
+          copyBtn.innerHTML = COPY_ICON;
+          copyBtn.classList.remove('copied');
+          copyBtn.setAttribute('aria-label', currentLanguage === 'id' ? 'Salin' : 'Copy');
+        }, 2000);
+      }).catch(function () {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = plainText;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          copyBtn.innerHTML = CHECK_ICON;
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.innerHTML = COPY_ICON;
+            copyBtn.classList.remove('copied');
+          }, 2000);
+        } catch (_) {}
+      });
+    });
+
+    bubble.appendChild(text);
+    bubble.appendChild(copyBtn);
+    bubbleWrap.appendChild(bubble);
+    wrap.appendChild(avatar);
+    wrap.appendChild(bubbleWrap);
+    messagesEl.appendChild(wrap);
+    scrollToBottom();
+
+    let fullText = '';
+    return {
+      appendChunk(chunk) {
+        fullText += chunk;
+        text.innerHTML = markdownToHtml(fullText);
+        scrollToBottom();
+      },
+      finalize(finalText) {
+        if (typeof finalText === 'string') {
+          fullText = finalText;
+        }
+        text.innerHTML = markdownToHtml(fullText);
+        scrollToBottom();
+        return fullText;
+      },
+      getText() {
+        return fullText;
+      },
+      remove() {
+        wrap.remove();
+      }
+    };
+  }
+
   function setSendEnabled(enabled) {
     sendBtn.disabled = !enabled;
     input.disabled = !enabled;
@@ -361,7 +458,7 @@
 
     const apiKey = await loadEnv();
     if (!apiKey) {
-      addMessage(currentLanguage === 'id' ? 'API key belum terbaca. Pastikan: (1) Buka via Live Server (bukan file://), (2) File config.env ada di folder yang sama dengan index.html, (3) Isi: RAPIDAPI_KEY=your_key' : 'API key not found. Ensure: (1) Open via Live Server (not file://), (2) config.env exists in same folder as index.html, (3) Format: RAPIDAPI_KEY=your_key', 'bot', true);
+      addMessage(currentLanguage === 'id' ? 'API key Groq belum terbaca. Pastikan config.env ada dan berisi GROQ_API_KEY=gsk_...' : 'Groq API key not found. Ensure config.env contains GROQ_API_KEY=gsk_...', 'bot', true);
       return;
     }
     const domain = checkDomain(raw);
@@ -379,34 +476,131 @@
       const ctx = getSessionContext();
       const system = buildSystemPrompt(currentMode, currentLanguage);
       const userContent = buildUserMessage(raw, currentMode, currentLanguage);
-      const contextStr = ctx.length > 0 ? '\n\n[Previous]\n' + ctx.map(m => (m.role === 'user' ? 'User: ' : 'Assistant: ') + m.content).join('\n\n') : '';
-      const fullContent = system + contextStr + '\n\n[Current]\n' + userContent;
 
-      const res = await fetch(RAPIDAPI_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': RAPIDAPI_HOST },
-        body: JSON.stringify({ messages: [{ role: 'user', content: fullContent }], model: 'gpt-4o-mini' })
+      const messagesPayload = [
+        { role: 'system', content: system }
+      ];
+      for (const m of ctx) {
+        messagesPayload.push({
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          content: m.content
+        });
+      }
+      messagesPayload.push({
+        role: 'user',
+        content: userContent
       });
 
-      const rawText = await res.text();
-      let data = {};
-      try { data = rawText ? JSON.parse(rawText) : {}; } catch { data = {}; }
-      const reply = extractRapidAPIResponse(data);
+      const res = await fetch(GROQ_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: GROQ_MODEL,
+          messages: messagesPayload,
+          temperature: 1,
+          max_completion_tokens: 2048,
+          top_p: 1,
+          reasoning_effort: 'medium',
+          stream: true,
+          stop: null
+        })
+      });
 
       if (!res.ok) {
-        addMessage('Sorry, I couldn\'t reach the kitchen assistant. ' + (data.message || data.error || `HTTP ${res.status}`), 'bot', true);
-        return;
-      }
-      if (!reply) {
-        addMessage(currentLanguage === 'id' ? 'Respons kosong. Cek RAPIDAPI_KEY dan subscription di rapidapi.com.' : 'Empty response. Check RAPIDAPI_KEY and subscription at rapidapi.com.', 'bot', true);
+        let errData = {};
+        try { errData = await res.json(); } catch (_) {}
+        const errDetail = errData.error?.message || errData.message || `HTTP ${res.status}`;
+        addMessage((currentLanguage === 'id' ? 'Maaf, gagal menghubungi ChefBot: ' : 'Sorry, failed to reach ChefBot: ') + errDetail, 'bot', true);
         return;
       }
 
-      let cleanedReply = cleanApiFooter(reply);
-      if (isGreetingResponse(cleanedReply)) cleanedReply = getRedirectMsg();
-      addMessage(cleanedReply, 'bot', false);
+      let reply = '';
+      if (res.body && res.body.getReader) {
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+        let streamMsg = null;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || !trimmed.startsWith('data:')) continue;
+            const dataStr = trimmed.slice(5).trim();
+            if (dataStr === '[DONE]') continue;
+
+            try {
+              const parsed = JSON.parse(dataStr);
+              const deltaContent = parsed.choices?.[0]?.delta?.content;
+              if (deltaContent) {
+                if (!streamMsg) {
+                  setTyping(false);
+                  streamMsg = createStreamingBotMessage();
+                }
+                reply += deltaContent;
+                streamMsg.appendChunk(deltaContent);
+              }
+            } catch (_) {}
+          }
+        }
+
+        if (buffer.trim() && buffer.trim().startsWith('data:')) {
+          const dataStr = buffer.trim().slice(5).trim();
+          if (dataStr !== '[DONE]') {
+            try {
+              const parsed = JSON.parse(dataStr);
+              const deltaContent = parsed.choices?.[0]?.delta?.content;
+              if (deltaContent) {
+                if (!streamMsg) {
+                  setTyping(false);
+                  streamMsg = createStreamingBotMessage();
+                }
+                reply += deltaContent;
+                streamMsg.appendChunk(deltaContent);
+              }
+            } catch (_) {}
+          }
+        }
+
+        if (!reply) {
+          if (streamMsg) streamMsg.remove();
+          addMessage(currentLanguage === 'id' ? 'Respons kosong dari server Groq.' : 'Empty response from Groq server.', 'bot', true);
+          return;
+        }
+
+        let cleanedReply = cleanApiFooter(reply);
+        if (isGreetingResponse(cleanedReply)) cleanedReply = getRedirectMsg();
+        if (streamMsg) {
+          streamMsg.finalize(cleanedReply);
+        } else {
+          addMessage(cleanedReply, 'bot', false);
+        }
+        reply = cleanedReply;
+      } else {
+        const rawText = await res.text();
+        let data = {};
+        try { data = rawText ? JSON.parse(rawText) : {}; } catch (_) {}
+        reply = extractGroqResponse(data);
+        if (!reply) {
+          addMessage(currentLanguage === 'id' ? 'Respons kosong dari server Groq.' : 'Empty response from Groq server.', 'bot', true);
+          return;
+        }
+        let cleanedReply = cleanApiFooter(reply);
+        if (isGreetingResponse(cleanedReply)) cleanedReply = getRedirectMsg();
+        addMessage(cleanedReply, 'bot', false);
+        reply = cleanedReply;
+      }
+
       ctx.push({ role: 'user', content: raw });
-      ctx.push({ role: 'assistant', content: cleanedReply });
+      ctx.push({ role: 'assistant', content: reply });
       setSessionContext(ctx);
     } catch (err) {
       addMessage((currentLanguage === 'id' ? 'Koneksi gagal: ' : 'Connection failed: ') + (err.message || 'Network error'), 'bot', true);
